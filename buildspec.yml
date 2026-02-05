@@ -10,11 +10,7 @@ phases:
   post_build:
     commands:
       - echo "Deploying backend to private EC2 via SSM..."
-      - aws ssm send-command \
-          --document-name "AWS-RunShellScript" \
-          --targets '[{"Key":"tag:Name","Values":["backend-private-ec2"]}]' \
-          --comment "Deploy backend via CodeBuild" \
-          --parameters '{"commands":["mkdir -p /home/ubuntu/app","cp -r . /home/ubuntu/app","cd /home/ubuntu/app","npm install","pm2 restart all || pm2 start index.js --name backend"]}'
+      - aws ssm send-command --document-name "AWS-RunShellScript" --targets '[{"Key":"tag:Name","Values":["backend-private-ec2"]}]' --comment "Deploy backend via CodeBuild" --parameters "{\"commands\":[\"mkdir -p /home/ubuntu/app\",\"cp -r . /home/ubuntu/app\",\"cd /home/ubuntu/app\",\"npm install\",\"pm2 restart all || pm2 start index.js --name backend\"]}"
 artifacts:
   files:
     - '**/*'
