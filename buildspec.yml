@@ -1,26 +1,30 @@
 version: 0.2
 
+# Build backend artifacts and upload to S3
 phases:
   install:
     runtime-versions:
       nodejs: 18
     commands:
       - echo "Installing backend dependencies"
-      - npm install
-
+  pre_build:
+    commands:
+      - cd "$SOURCE_DIR"
+      - npm ci
+  build:
+    commands:
+      - npm run build --if-present
   post_build:
     commands:
-      - echo "Deploying backend to private EC2 via SSM"
-      - >
-        aws ssm send-command
-        --document-name "AWS-RunShellScript"
-        --targets "Key=tag:Name,Values=backend-private-ec2"
-        --comment "Deploy backend from CodeBuild"
-        --parameters commands="
-          sudo mkdir -p /home/ubuntu/app &&
-          sudo rm -rf /home/ubuntu/app/* &&
-          sudo cp -r . /home/ubuntu/app &&
-          cd /home/ubuntu/app &&
-          npm install &&
-          pm2 restart backend || pm2 start index.js --name backend
-        "
+      - VERSION="${CODEBUILD_RESOLVED_SOURCE_VERSION:0:7}"
+      - ARTIFACT_KEY="$APP_NAME/$ENV/$VERSION.tar.gz"
+      - echo "Packaging backend artifact"
+      - tar --exclude=node_modules -czf backend.tar.gz .
+      - echo "Uploading backend artifact to S3"
+      - aws s3 cp backend.tar.gz "s3://$ARTIFACT_BUCKET/$ARTIFACT_KEY"
+      - aws s3 cp backend.tar.gz "s3://$ARTIFACT_BUCKET/$APP_NAME/$ENV/latest.tar.gz"
+      - echo "$ARTIFACT_KEY" > artifact_key.txt
+artifacts:
+  files:
+    - backend.tar.gz
+    - artifact_key.txt
